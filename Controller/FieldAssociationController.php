@@ -2,14 +2,19 @@
 
 namespace KelkooXml\Controller;
 
+use Exception;
 use KelkooXml\KelkooXml;
 use KelkooXml\Model\KelkooxmlXmlFieldAssociation;
 use KelkooXml\Model\KelkooxmlXmlFieldAssociationQuery;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
 use Thelia\Controller\Admin\BaseAdminController;
-use Thelia\Core\HttpFoundation\Request;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Core\Translation\Translator;
 
+#[Route('/admin/module/KelkooXml/advanced', name: 'kelkoo_xml_field_association_')]
 class FieldAssociationController extends BaseAdminController
 {
     const ASSO_TYPE_FIXED_VALUE = 1;
@@ -50,6 +55,15 @@ class FieldAssociationController extends BaseAdminController
         'event-zip-code', 'event-city', 'event-location', 'event-start-date', 'event-end-date', 'event-genre'
     );
 
+    protected Request $request;
+
+    public function __construct(RequestStack $requestStack)
+    {
+        $this->request = $requestStack->getCurrentRequest();
+    }
+
+
+    #[Route('/field/add', name: 'add', methods: 'POST')]
     public function addFieldAction()
     {
         if (null !== $response = $this->checkAuth(array(AdminResources::MODULE), array('KelkooXml'), AccessManager::CREATE)) {
@@ -60,9 +74,9 @@ class FieldAssociationController extends BaseAdminController
 
         try {
             $fieldAssociation = new KelkooxmlXmlFieldAssociation();
-            $this->hydrateFieldAssociationObjectWithRequestContent($fieldAssociation, $this->getRequest());
+            $this->hydrateFieldAssociationObjectWithRequestContent($fieldAssociation, $this->request);
             $fieldAssociation->save();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $message = $e->getMessage();
         }
 
@@ -78,7 +92,7 @@ class FieldAssociationController extends BaseAdminController
         return $this->generateRedirectFromRoute("admin.module.configure", array(), $redirectParameters);
     }
 
-
+    #[Route('/field/update', name: 'update', methods: 'POST')]
     public function updateFieldAction()
     {
         if (null !== $response = $this->checkAuth(array(AdminResources::MODULE), array('KelkooXml'), AccessManager::UPDATE)) {
@@ -88,16 +102,16 @@ class FieldAssociationController extends BaseAdminController
         $message = null;
 
         try {
-            $httpRequest = $this->getRequest();
+            $httpRequest = $this->request;
             $fieldAssociation = KelkooxmlXmlFieldAssociationQuery::create()
                 ->findOneById($httpRequest->request->get('id'));
             if ($fieldAssociation != null) {
-                $this->hydrateFieldAssociationObjectWithRequestContent($fieldAssociation, $this->getRequest());
+                $this->hydrateFieldAssociationObjectWithRequestContent($fieldAssociation, $this->request);
                 $fieldAssociation->save();
             } else {
-                throw new \Exception($this->getTranslator()->trans('Unable to find the field association to update.', [], KelkooXml::DOMAIN_NAME));
+                throw new Exception(Translator::getInstance()->trans('Unable to find the field association to update.', [], KelkooXml::DOMAIN_NAME));
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $message = $e->getMessage();
         }
 
@@ -113,7 +127,7 @@ class FieldAssociationController extends BaseAdminController
         return $this->generateRedirectFromRoute("admin.module.configure", array(), $redirectParameters);
     }
 
-
+    #[Route('/field/delete', name: 'delete', methods: 'POST')]
     public function deleteFieldAction()
     {
         if (null !== $response = $this->checkAuth(array(AdminResources::MODULE), array('KelkooXml'), AccessManager::DELETE)) {
@@ -123,15 +137,15 @@ class FieldAssociationController extends BaseAdminController
         $message = null;
 
         try {
-            $httpRequest = $this->getRequest();
+            $httpRequest = $this->request;
             $fieldAssociation = KelkooxmlXmlFieldAssociationQuery::create()
                 ->findOneById($httpRequest->request->get('id_field_to_delete'));
             if ($fieldAssociation != null) {
                 $fieldAssociation->delete();
             } else {
-                throw new \Exception($this->getTranslator()->trans('Unable to find the field association to delete.', [], KelkooXml::DOMAIN_NAME));
+                throw new Exception(Translator::getInstance()->trans('Unable to find the field association to delete.', [], KelkooXml::DOMAIN_NAME));
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $message = $e->getMessage();
         }
 
@@ -149,11 +163,15 @@ class FieldAssociationController extends BaseAdminController
 
 
     /**
-     * @param Request $httpRequest
      * @param KelkooxmlXmlFieldAssociation $fieldAssociation
+     * @param Request $httpRequest
      * @return KelkooxmlXmlFieldAssociation
+     * @throws Exception
      */
-    protected function hydrateFieldAssociationObjectWithRequestContent(&$fieldAssociation, $httpRequest)
+    protected function hydrateFieldAssociationObjectWithRequestContent(
+        KelkooxmlXmlFieldAssociation $fieldAssociation,
+        Request $httpRequest
+    ): KelkooxmlXmlFieldAssociation
     {
         $request = $httpRequest->request;
 
@@ -162,13 +180,13 @@ class FieldAssociationController extends BaseAdminController
         $kelkooAttribute = $request->get('kelkoo_attribute');
 
         if (empty($kelkooAttribute)) {
-            throw new \Exception($this->getTranslator()->trans('The Kelkoo attribute cannot be empty.', [], KelkooXml::DOMAIN_NAME));
+            throw new Exception(Translator::getInstance()->trans('The Kelkoo attribute cannot be empty.', [], KelkooXml::DOMAIN_NAME));
         }
 
         $kelkooAttribute = strtolower($kelkooAttribute);
 
         if (in_array($kelkooAttribute, self::FIELDS_NATIVELY_DEFINED)) {
-            throw new \Exception($this->getTranslator()->trans(
+            throw new Exception(Translator::getInstance()->trans(
                 'The Kelkoo attribute "%name" cannot be redefined here as it is already defined by the module.',
                 array('%name' => $kelkooAttribute),
                 KelkooXml::DOMAIN_NAME
@@ -186,33 +204,33 @@ class FieldAssociationController extends BaseAdminController
             case self::ASSO_TYPE_FIXED_VALUE:
                 $fixedValue = $request->get('fixed_value');
                 if (empty($fixedValue)) {
-                    throw new \Exception($this->getTranslator()->trans('The fixed value cannot be empty if you have chosen the "Fixed value" association type.', [], KelkooXml::DOMAIN_NAME));
+                    throw new Exception(Translator::getInstance()->trans('The fixed value cannot be empty if you have chosen the "Fixed value" association type.', [], KelkooXml::DOMAIN_NAME));
                 }
                 $fieldAssociation->setFixedValue($fixedValue);
                 break;
             case self::ASSO_TYPE_RELATED_TO_THELIA_ATTRIBUTE:
                 $thelia_attribute_id = $request->get('thelia_attribute');
                 if (empty($thelia_attribute_id)) {
-                    throw new \Exception($this->getTranslator()->trans('The Thelia attribute cannot be empty if you have chosen the "Linked to a Thelia attribute" association type.', [], KelkooXml::DOMAIN_NAME));
+                    throw new Exception(Translator::getInstance()->trans('The Thelia attribute cannot be empty if you have chosen the "Linked to a Thelia attribute" association type.', [], KelkooXml::DOMAIN_NAME));
                 }
                 $fieldAssociation->setIdRelatedAttribute($thelia_attribute_id);
                 break;
             case self::ASSO_TYPE_RELATED_TO_THELIA_FEATURE:
                 $thelia_feature_id = $request->get('thelia_feature');
                 if (empty($thelia_feature_id)) {
-                    throw new \Exception($this->getTranslator()->trans('The Thelia feature cannot be empty if you have chosen the "Linked to a Thelia feature" association type.', [], KelkooXml::DOMAIN_NAME));
+                    throw new Exception(Translator::getInstance()->trans('The Thelia feature cannot be empty if you have chosen the "Linked to a Thelia feature" association type.', [], KelkooXml::DOMAIN_NAME));
                 }
                 $fieldAssociation->setIdRelatedFeature($thelia_feature_id);
                 break;
             default:
-                throw new \Exception($this->getTranslator()->trans('The chosen association type is unknown.', [], KelkooXml::DOMAIN_NAME));
+                throw new Exception(Translator::getInstance()->trans('The chosen association type is unknown.', [], KelkooXml::DOMAIN_NAME));
         }
 
         $fieldAssociation->setAssociationType($associationType);
         return $fieldAssociation;
     }
 
-
+    #[Route('/setEanRule', name: 'ean_rule', methods: 'POST')]
     public function setEanRuleAction()
     {
         if (null !== $response = $this->checkAuth(array(AdminResources::MODULE), array('KelkooXml'), AccessManager::UPDATE)) {
@@ -226,7 +244,7 @@ class FieldAssociationController extends BaseAdminController
             FeedXmlController::EAN_RULE_NONE
         ];
 
-        $httpRequest = $this->getRequest();
+        $httpRequest = $this->request;
         $gtinRule = $httpRequest->request->get('gtin_rule');
         if ($gtinRule != null && in_array($gtinRule, $ruleArray)) {
             KelkooXml::setConfigValue("ean_rule", $gtinRule);
@@ -241,6 +259,6 @@ class FieldAssociationController extends BaseAdminController
             $redirectParameters['error_message_advanced_tab'] = $message;
         }
 
-        return $this->generateRedirectFromRoute("admin.module.configure", array(), $redirectParameters);
+        return $this->generateRedirectFromRoute("admin.module.configure", [], $redirectParameters);
     }
 }

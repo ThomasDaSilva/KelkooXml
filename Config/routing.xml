@@ -4,31 +4,8 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://symfony.com/schema/routing http://symfony.com/schema/routing/routing-1.0.xsd">
 
-    <route id="kelkooxml.config" path="/admin/module/KelkooXml">
-        <default key="_controller">KelkooXml\Controller\ModuleConfigController::viewConfigAction</default>
-    </route>
-
-    <!-- FEED XML -->
-
-    <route id="kelkooxml.getfeedxml" path="/kelkooxml/feed/xml/{feedId}/feed.xml">
-        <default key="_controller">KelkooXml\Controller\FeedXmlController::getFeedXmlAction</default>
-        <requirement key="feedId">\d+</requirement>
-    </route>
-
 
     <!-- FEED CONFIGURATION -->
-
-    <route id="kelkooxml.feed.add" path="/admin/module/kelkooxml/feed/add" methods="POST">
-        <default key="_controller">KelkooXml\Controller\FeedConfigController::addFeedAction</default>
-    </route>
-
-    <route id="kelkooxml.feed.update" path="/admin/module/kelkooxml/feed/update" methods="POST">
-        <default key="_controller">KelkooXml\Controller\FeedConfigController::updateFeedAction</default>
-    </route>
-
-    <route id="kelkooxml.feed.delete" path="/admin/module/kelkooxml/feed/delete" methods="POST">
-        <default key="_controller">KelkooXml\Controller\FeedConfigController::deleteFeedAction</default>
-    </route>
 
 
 
@@ -48,13 +25,6 @@
 
     <route id="kelkooxml.advanced.seteanrule" path="/admin/module/kelkooxml/advanced/setEanRule" methods="POST">
         <default key="_controller">KelkooXml\Controller\FieldAssociationController::setEanRuleAction</default>
-    </route>
-
-
-    <!-- XML ERROR LOG -->
-
-    <route id="kelkooxml.log.get" path="/admin/module/kelkooxml/log/get" methods="GET">
-        <default key="_controller">KelkooXml\Controller\LogController::getLogAction</default>
     </route>
 
 </routes>

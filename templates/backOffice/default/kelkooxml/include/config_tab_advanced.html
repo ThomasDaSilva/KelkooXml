@@ -19,7 +19,7 @@
 
         <div class="alert alert-help">
             <div class="row">
-                <form method="post" action='{url path="/admin/module/kelkooxml/advanced/field/add"}'>
+                <form method="post" action='{url path="/admin/module/KelkooXml/advanced/field/add"}'>
                     <div class="form-group col-md-3">
                         <label for="advanced_input_kelkoo_attribute_new">{intl l="Kelkoo attribute"}</label>
                         <input id="advanced_input_kelkoo_attribute_new" class="form-control" name="kelkoo_attribute" required/>
@@ -82,7 +82,7 @@
         {$ASSOCIATION_TYPE = $field_association.AssociationType}
 
         <div class="row">
-            <form method="post" action='{url path="/admin/module/kelkooxml/advanced/field/update"}'>
+            <form method="post" action='{url path="/admin/module/KelkooXml/advanced/field/update"}'>
                 <input type="hidden" value="{$ID}" name="id"/>
 
                 <div class="form-group col-md-3">
@@ -132,7 +132,7 @@
             </form>
 
             <div class="form-group col-md-1">
-                <form method="post" action='{url path="/admin/module/kelkooxml/advanced/field/delete"}'>
+                <form method="post" action='{url path="/admin/module/KelkooXml/advanced/field/delete"}'>
                     <input type="hidden" value="{$ID}" name="id_field_to_delete"/>
                     <button class="btn btn-danger form-control" type="submit" title="{intl l='Remove'}">
                         <span class="glyphicon glyphicon-trash"></span>
@@ -156,7 +156,7 @@
             </div>
             <div class="panel-body">
                 <small>{intl l='Which product\'s EAN code should be included in the XML field "ean" ?'}</small>
-                <form action="{url path='/admin/module/kelkooxml/advanced/setEanRule'}" method="post">
+                <form action="{url path='/admin/module/KelkooXml/advanced/setEanRule'}" method="post">
                     <div class="form-group">
                         <div class="radio">
                             <label><input type="radio" name="gtin_rule" value="all" {if $ean_rule == "all"}checked="checked"{/if} >{intl l="Include all EAN codes without verification, ignore empty"}</label>

@@ -12,9 +12,9 @@
         -->
 
         <div class="alert alert-help">
-            {form name="kelkooxml.feed.management"}
+            {form name="kelkooxml_form_feed_management_form"}
             <div class="row">
-                <form method="post" action='{url path="/admin/module/kelkooxml/feed/add"}'>
+                <form method="post" action='{url path="/admin/module/KelkooXml/feed/add"}'>
                     {form_hidden_fields form=$form}
                     {form_field form=$form field="feed_label"}
                     <div class="form-group col-md-2 {if $error}has-error{/if}">
@@ -73,8 +73,8 @@
         {loop type="kelkooxml.feed" name="kelkooxml_feed"}
 
         <div class="row">
-            {form name="kelkooxml.feed.management"}
-            <form method="post" action='{url path="/admin/module/kelkooxml/feed/update"}'>
+            {form name="kelkooxml_form_feed_management_form"}
+            <form method="post" action='{url path="/admin/module/KelkooXml/feed/update"}'>
                 {form_hidden_fields form=$form}
 
                 {form_field form=$form field="id"}
@@ -142,7 +142,7 @@
                 <a href="#" class="js_btn_configure_custom_xml btn btn-primary btn-control-feed" data-toggle="tooltip" title="{intl l='Configure custom XML'}" data-feedid="{$ID_FEED}">
                     <span class="glyphicon glyphicon-wrench"></span>
                 </a>
-                <form id="js_form_delete_feed_{$ID_FEED}" class="custom-form-inline" method="post" action="{url path='/admin/module/kelkooxml/feed/delete'}">
+                <form id="js_form_delete_feed_{$ID_FEED}" class="custom-form-inline" method="post" action="{url path='/admin/module/KelkooXml/feed/delete'}">
                     <input type="hidden" name="id_feed_to_delete" value="{$ID_FEED}"/>
                     <a class="btn btn-danger js_btn_delete_with_warning" data-formid="js_form_delete_feed_{$ID_FEED}">
                         <span class="glyphicon glyphicon-trash"></span>

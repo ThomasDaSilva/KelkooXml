@@ -4,7 +4,7 @@ namespace KelkooXml\Tools;
 
 class EanChecker
 {
-    public function isValidEan($gtin)
+    public function isValidEan($gtin): bool
     {
         if (!is_numeric($gtin)) {
             return false;

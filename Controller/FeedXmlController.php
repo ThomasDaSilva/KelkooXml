@@ -2,6 +2,7 @@
 
 namespace KelkooXml\Controller;
 
+use Exception;
 use KelkooXml\KelkooXml;
 use KelkooXml\Model\KelkooxmlFeed;
 use KelkooXml\Model\KelkooxmlFeedQuery;
@@ -9,8 +10,13 @@ use KelkooXml\Model\KelkooxmlLogQuery;
 use KelkooXml\Model\KelkooxmlXmlFieldAssociation;
 use KelkooXml\Model\KelkooxmlXmlFieldAssociationQuery;
 use KelkooXml\Tools\EanChecker;
+use PDO;
 use Propel\Runtime\ActiveQuery\Criteria;
+use Propel\Runtime\Exception\PropelException;
 use Propel\Runtime\Propel;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Routing\Annotation\Route;
 use Thelia\Action\Image;
 use Thelia\Controller\Front\BaseFrontController;
 use Thelia\Core\Event\Image\ImageEvent;
@@ -28,6 +34,7 @@ use Thelia\Module\BaseModule;
 use Thelia\TaxEngine\Calculator;
 use Thelia\Tools\URL;
 
+#[Route('/kelkooxml/feed/xml', name: 'kelkoo_feed_xml_')]
 class FeedXmlController extends BaseFrontController
 {
     const MAX_CHAR_TITLE = 80;
@@ -36,7 +43,7 @@ class FeedXmlController extends BaseFrontController
     /**
      * @var KelkooxmlLogQuery $logger
      */
-    private $logger;
+    private KelkooxmlLogQuery $logger;
 
     private $nb_pse;
     private $nb_pse_invisible;
@@ -52,18 +59,25 @@ class FeedXmlController extends BaseFrontController
 
     const DEFAULT_EAN_RULE = self::EAN_RULE_CHECK_STRICT;
 
-
-    public function getFeedXmlAction($feedId)
+    /**
+     * @throws Exception
+     */
+    #[Route('/{feedId}/feed.xml', name: 'get_feed')]
+    public function getFeedXmlAction(
+        EventDispatcherInterface $eventDispatcher,
+        RequestStack $requestStack,
+        int $feedId
+    ): Response
     {
         $this->logger = KelkooxmlLogQuery::create();
         $this->ean_rule = KelkooXml::getConfigValue("ean_rule", self::DEFAULT_EAN_RULE);
 
         $feed = KelkooxmlFeedQuery::create()->findOneById($feedId);
 
-        $request = $this->getRequest();
+        $request = $requestStack->getCurrentRequest();
 
-        $limit = $request->get('limit', null);
-        $offset = $request->get('offset', null);
+        $limit = $request->get('limit');
+        $offset = $request->get('offset');
 
         if ($feed == null) {
             $this->pageNotFound();
@@ -77,7 +91,7 @@ class FeedXmlController extends BaseFrontController
             $this->injectTaxedPrices($pseArray, $feed);
             $this->injectCustomAssociationFields($pseArray, $feed);
             $this->injectAttributesInTitle($pseArray, $feed);
-            $this->injectImages($pseArray);
+            $this->injectImages($eventDispatcher, $pseArray);
 
             $this->nb_pse = 0;
             $this->nb_pse_invisible = 0;
@@ -129,17 +143,20 @@ class FeedXmlController extends BaseFrontController
 
             return $response;
 
-        } catch (\Exception $ex) {
+        } catch (Exception $ex) {
             $this->logger->logFatal($feed, null, $ex->getMessage(), $ex->getFile()." at line ".$ex->getLine());
             throw $ex;
         }
     }
 
-    protected function renderXmlAll($feed, &$pseArray, $shippingArray)
+    /**
+     * @throws PropelException
+     */
+    protected function renderXmlAll($feed, &$pseArray, $shippingArray): string
     {
         $checkAvailability = ConfigQuery::checkAvailableStock();
         $storeInfos = array(
-            "zipcode" => ConfigQuery::read("store_zipcode", null)
+            "zipcode" => ConfigQuery::read("store_zipcode")
         );
 
         $str = '<?xml version="1.0" encoding="UTF-8" ?>'.PHP_EOL;
@@ -147,7 +164,6 @@ class FeedXmlController extends BaseFrontController
 
         $shippingStr = '';
 
-        $i=0;
         $nbShipping = count($shippingArray);
         for ($i=0; $i < $nbShipping && $i < 4; $i++) {
             $shipping = $shippingArray[$i];
@@ -186,8 +202,16 @@ class FeedXmlController extends BaseFrontController
      * @param bool $checkAvailability
      * @param array $storeInfos
      * @return string
+     * @throws PropelException
+     * @throws PropelException
      */
-    protected function renderXmlOnePse($feed, &$pse, $shippingStr, $checkAvailability, $storeInfos)
+    protected function renderXmlOnePse(
+        KelkooxmlFeed $feed,
+        array &$pse,
+        string $shippingStr,
+        bool $checkAvailability,
+        array $storeInfos
+    ): string
     {
         $str = '<product>'.PHP_EOL;
         $str .= '<offer-id>'.$pse['ID'].'</offer-id>'.PHP_EOL;
@@ -316,26 +340,22 @@ class FeedXmlController extends BaseFrontController
 
         $include_ean = false;
 
-        if (empty($pse['EAN_CODE']) || $this->ean_rule == self::EAN_RULE_NONE) {
-            $include_ean = false;
-        } elseif ($this->ean_rule == self::EAN_RULE_ALL) {
+        if ($this->ean_rule == self::EAN_RULE_ALL) {
             $include_ean = true;
-        } else {
-            if ((new EanChecker())->isValidEan($pse['EAN_CODE'])) {
-                $include_ean = true;
-            } else {
-                if ($this->ean_rule == self::EAN_RULE_CHECK_FLEXIBLE) {
-                    $include_ean = false;
-                } elseif ($this->ean_rule == self::EAN_RULE_CHECK_STRICT) {
-                    $this->logger->logError(
-                        $feed,
-                        $pse['ID'],
-                        Translator::getInstance()->trans('Invalid GTIN/EAN code : "%code"', ["%code" => $pse['EAN_CODE']], KelkooXml::DOMAIN_NAME),
-                        Translator::getInstance()->trans('The product s identification code seems invalid. You can set a valid EAN code in the Edit product page or disable the verification in the [Advanced configuration] tab.', [], KelkooXml::DOMAIN_NAME)
-                    );
-                    return '';
-                }
-            }
+        }
+
+        if ((new EanChecker())->isValidEan($pse['EAN_CODE'])) {
+            $include_ean = true;
+        }
+
+        if ($this->ean_rule == self::EAN_RULE_CHECK_STRICT) {
+            $this->logger->logError(
+                $feed,
+                $pse['ID'],
+                Translator::getInstance()->trans('Invalid GTIN/EAN code : "%code"', ["%code" => $pse['EAN_CODE']], KelkooXml::DOMAIN_NAME),
+                Translator::getInstance()->trans('The product s identification code seems invalid. You can set a valid EAN code in the Edit product page or disable the verification in the [Advanced configuration] tab.', [], KelkooXml::DOMAIN_NAME)
+            );
+            return '';
         }
 
         if ($include_ean) {
@@ -408,12 +428,12 @@ class FeedXmlController extends BaseFrontController
         return $str.'</product>'.PHP_EOL;
     }
 
-    protected function xmlSafeEncode($str)
+    protected function xmlSafeEncode($str): string
     {
         return htmlspecialchars($str, ENT_XML1);
     }
 
-    protected function hasCustomField($pse, $fieldName)
+    protected function hasCustomField($pse, $fieldName): bool
     {
         foreach ($pse['CUSTOM_FIELD_ARRAY'] as $field) {
             if ($field['FIELD_NAME'] == $fieldName) {
@@ -423,7 +443,7 @@ class FeedXmlController extends BaseFrontController
         return false;
     }
 
-    protected function buildEmptyField($pse, $fieldName)
+    protected function buildEmptyField($pse, $fieldName): string
     {
         if (!$this->hasCustomField($pse, $fieldName)) {
             return '<'.$fieldName.'></'.$fieldName.'>'.PHP_EOL;
@@ -433,8 +453,12 @@ class FeedXmlController extends BaseFrontController
 
     /**
      * @param KelkooxmlFeed $feed
+     * @param null $limit
+     * @param null $offset
+     * @return bool|array
+     * @throws PropelException
      */
-    protected function getProductItems($feed, $limit = null, $offset = null)
+    protected function getProductItems(KelkooxmlFeed $feed, $limit = null, $offset = null): bool|array
     {
         $sql = 'SELECT 
 
@@ -489,14 +513,12 @@ class FeedXmlController extends BaseFrontController
 
         $con = Propel::getConnection();
         $stmt = $con->prepare($sql);
-        $stmt->bindValue(':locale', $feed->getLang()->getLocale(), \PDO::PARAM_STR);
-        $stmt->bindValue(':currid', $feed->getCurrencyId(), \PDO::PARAM_INT);
-        $stmt->bindValue(':currate', $feed->getCurrency()->getRate(), \PDO::PARAM_STR);
+        $stmt->bindValue(':locale', $feed->getLang()->getLocale());
+        $stmt->bindValue(':currid', $feed->getCurrencyId(), PDO::PARAM_INT);
+        $stmt->bindValue(':currate', $feed->getCurrency()->getRate());
 
         $stmt->execute();
-        $pseArray = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-        return $pseArray;
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     protected function checkPositiveInteger($var)
@@ -506,12 +528,12 @@ class FeedXmlController extends BaseFrontController
     }
 
 
-
     /**
      * @param KelkooxmlFeed $feed
      * @param array $pseArray
+     * @throws PropelException
      */
-    protected function injectUrls(&$pseArray, $feed)
+    protected function injectUrls(array &$pseArray, KelkooxmlFeed $feed)
     {
         $urlManager = URL::getInstance();
         foreach ($pseArray as &$pse) {
@@ -527,8 +549,10 @@ class FeedXmlController extends BaseFrontController
     /**
      * @param KelkooxmlFeed $feed
      * @param array $pseArray
+     * @throws PropelException
+     * @throws PropelException
      */
-    protected function injectTaxedPrices(&$pseArray, $feed)
+    protected function injectTaxedPrices(array &$pseArray, KelkooxmlFeed $feed)
     {
         $taxRulesCollection = TaxRuleQuery::create()->find();
         $taxRulesArray = [];
@@ -559,8 +583,9 @@ class FeedXmlController extends BaseFrontController
     /**
      * @param KelkooxmlFeed $feed
      * @param array $pseArray
+     * @throws PropelException
      */
-    protected function injectCustomAssociationFields(&$pseArray, $feed)
+    protected function injectCustomAssociationFields(array &$pseArray, KelkooxmlFeed $feed)
     {
         $attributesArray = [];
         $featuresArray = [];
@@ -627,6 +652,7 @@ class FeedXmlController extends BaseFrontController
     /**
      * @param KelkooxmlFeed $feed
      * @param array $pseArray
+     * @throws PropelException
      */
     protected function injectAttributesInTitle(&$pseArray, $feed)
     {
@@ -642,12 +668,12 @@ class FeedXmlController extends BaseFrontController
     /**
      * @param array $pseArray
      */
-    protected function injectImages(&$pseArray)
+    protected function injectImages(EventDispatcherInterface $eventDispatcher, &$pseArray)
     {
         foreach ($pseArray as &$pse) {
             if ($pse['IMAGE_NAME'] != null) {
                 $imageEvent = $this->createImageEvent($pse['IMAGE_NAME'], 'product');
-                $this->dispatch(TheliaEvents::IMAGE_PROCESS, $imageEvent);
+                $eventDispatcher->dispatch($imageEvent, TheliaEvents::IMAGE_PROCESS);
                 $pse['IMAGE_PATH'] = $imageEvent->getFileUrl();
             } else {
                 $pse['IMAGE_PATH'] = null;
@@ -661,7 +687,7 @@ class FeedXmlController extends BaseFrontController
      * @param string $type
      * @return ImageEvent
      */
-    protected function createImageEvent($imageFile, $type)
+    protected function createImageEvent($imageFile, string $type)
     {
         $imageEvent = new ImageEvent();
         $baseSourceFilePath = ConfigQuery::read('images_library_path');
@@ -685,7 +711,7 @@ class FeedXmlController extends BaseFrontController
 
 
 
-    protected function getArrayAttributesConcatValues($locale, $attribute_id = null, $separator = ';')
+    protected function getArrayAttributesConcatValues($locale, $attribute_id = null, $separator = ';'): array
     {
         $con = Propel::getConnection();
 
@@ -700,13 +726,13 @@ class FeedXmlController extends BaseFrontController
         $sql .= ' GROUP BY attribute_combination.product_sale_elements_id';
 
         $stmt = $con->prepare($sql);
-        $stmt->bindValue(':locale', $locale, \PDO::PARAM_STR);
+        $stmt->bindValue(':locale', $locale, PDO::PARAM_STR);
         if ($attribute_id != null) {
-            $stmt->bindValue(':attrid', $attribute_id, \PDO::PARAM_INT);
+            $stmt->bindValue(':attrid', $attribute_id, PDO::PARAM_INT);
         }
 
         $stmt->execute();
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $attrib_by_pse = array();
         foreach ($rows as $row) {
@@ -716,7 +742,7 @@ class FeedXmlController extends BaseFrontController
     }
 
 
-    protected function getArrayFeaturesConcatValues($locale, $feature_id)
+    protected function getArrayFeaturesConcatValues($locale, $feature_id): array
     {
         $con = Propel::getConnection();
 
@@ -727,11 +753,11 @@ class FeedXmlController extends BaseFrontController
                 GROUP BY feature_product.product_id';
 
         $stmt = $con->prepare($sql);
-        $stmt->bindValue(':locale', $locale, \PDO::PARAM_STR);
-        $stmt->bindValue(':featid', $feature_id, \PDO::PARAM_INT);
+        $stmt->bindValue(':locale', $locale, PDO::PARAM_STR);
+        $stmt->bindValue(':featid', $feature_id, PDO::PARAM_INT);
 
         $stmt->execute();
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $attrib_by_pse = array();
         foreach ($rows as $row) {
@@ -743,8 +769,9 @@ class FeedXmlController extends BaseFrontController
     /**
      * @param KelkooxmlFeed $feed
      * @return array
+     * @throws PropelException
      */
-    protected function buildShippingArray($feed)
+    protected function buildShippingArray(KelkooxmlFeed $feed): array
     {
         $resultArray = [];
 
@@ -774,8 +801,9 @@ class FeedXmlController extends BaseFrontController
     /**
      * @param KelkooxmlFeed $feed
      * @return array
+     * @throws PropelException
      */
-    protected function getShippings($feed)
+    protected function getShippings(KelkooxmlFeed $feed): array
     {
         $country = $feed->getCountry();
 

@@ -4,32 +4,38 @@ namespace KelkooXml\Controller;
 
 use KelkooXml\Model\KelkooxmlLog;
 use KelkooXml\Model\KelkooxmlLogQuery;
+use Propel\Runtime\Exception\PropelException;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Routing\Annotation\Route;
 use Thelia\Controller\Admin\BaseAdminController;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 
+#[Route('/admin/module/KelkooXml/log', name: 'kelkoo_log_')]
 class LogController extends BaseAdminController
 {
-    public function getLogAction()
+    /**
+     * @throws PropelException
+     */
+    #[Route('/get', name: 'get', methods: 'GET')]
+    public function getLogAction(RequestStack $requestStack)
     {
         if (null !== $response = $this->checkAuth(array(AdminResources::MODULE), array('KelkooXml'), AccessManager::CREATE)) {
             return $response;
         }
 
-        /** @var \Thelia\Core\HttpFoundation\Request $request **/
-        $request = $this->getRequest();
+        $request = $requestStack->getCurrentRequest();
 
         $limit = $request->get('limit', 50);
-        $offset = $request->get('offset', null);
+        $offset = $request->get('offset');
         $levels_checked = [];
 
-        if ($request->get('info', null) == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_INFORMATION;
-        if ($request->get('success', null) == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_SUCCESS;
-        if ($request->get('warning', null) == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_WARNING;
-        if ($request->get('error', null) == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_ERROR;
-        if ($request->get('fatal', null) == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_FATAL;
+        if ($request->get('info') == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_INFORMATION;
+        if ($request->get('success') == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_SUCCESS;
+        if ($request->get('warning') == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_WARNING;
+        if ($request->get('error') == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_ERROR;
+        if ($request->get('fatal') == 1) $levels_checked[] = KelkooxmlLogQuery::LEVEL_FATAL;
 
-        /** @var KelkooxmlLogQuery $query **/
         $query = KelkooxmlLogQuery::create()
             ->orderByCreatedAt('desc')
             ->orderById('desc')

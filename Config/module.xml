@@ -13,8 +13,8 @@
         <language>en_US</language>
         <language>fr_FR</language>
     </languages>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
     <type>classic</type>
-    <thelia>2.3.0</thelia>
+    <thelia>2.5.0</thelia>
     <stability>other</stability>
 </module>

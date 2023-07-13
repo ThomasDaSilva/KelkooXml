@@ -4,14 +4,18 @@ namespace KelkooXml\Controller;
 
 use KelkooXml\KelkooXml;
 use KelkooXml\Model\KelkooxmlXmlFieldAssociationQuery;
+use PDO;
 use Propel\Runtime\Propel;
+use Symfony\Component\Routing\Annotation\Route;
 use Thelia\Controller\Admin\BaseAdminController;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 
+#[Route('/admin/module/KelkooXml', name: 'kelkoo_config_')]
 class ModuleConfigController extends BaseAdminController
 {
-    public function viewConfigAction($params = array())
+    #[Route('', name: 'view')]
+    public function viewConfigAction()
     {
         if (null !== $response = $this->checkAuth(array(AdminResources::MODULE), 'KelkooXml', AccessManager::VIEW)) {
             return $response;
@@ -36,7 +40,7 @@ class ModuleConfigController extends BaseAdminController
         $sql = 'SELECT COUNT(*) AS nb FROM product_sale_elements';
         $stmt = Propel::getConnection()->prepare($sql);
         $stmt->execute();
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         return $rows[0]['nb'];
     }
 }

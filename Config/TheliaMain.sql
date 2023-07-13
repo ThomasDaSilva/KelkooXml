@@ -17,9 +17,9 @@ CREATE TABLE `kelkooxml_feed`
     `currency_id` INTEGER NOT NULL,
     `country_id` INTEGER NOT NULL,
     PRIMARY KEY (`id`),
-    INDEX `FI_kelkooxml_feed_lang_id` (`lang_id`),
-    INDEX `FI_kelkooxml_feed_currency_id` (`currency_id`),
-    INDEX `FI_kelkooxml_feed_country_id` (`country_id`),
+    INDEX `fi_kelkooxml_feed_lang_id` (`lang_id`),
+    INDEX `fi_kelkooxml_feed_currency_id` (`currency_id`),
+    INDEX `fi_kelkooxml_feed_country_id` (`country_id`),
     CONSTRAINT `fk_kelkooxml_feed_lang_id`
         FOREIGN KEY (`lang_id`)
         REFERENCES `lang` (`id`)
@@ -53,8 +53,8 @@ CREATE TABLE `kelkooxml_xml_field_association`
     `id_related_feature` INTEGER,
     PRIMARY KEY (`id`),
     UNIQUE INDEX `unique_kelkooxml_xml_field_association_xml_field` (`xml_field`),
-    INDEX `FI_kelkooxml_xml_field_association_id_attribute` (`id_related_attribute`),
-    INDEX `FI_kelkooxml_xml_field_association_id_feature` (`id_related_feature`),
+    INDEX `fi_kelkooxml_xml_field_association_id_attribute` (`id_related_attribute`),
+    INDEX `fi_kelkooxml_xml_field_association_id_feature` (`id_related_feature`),
     CONSTRAINT `fk_kelkooxml_xml_field_association_id_attribute`
         FOREIGN KEY (`id_related_attribute`)
         REFERENCES `attribute` (`id`)
@@ -85,8 +85,8 @@ CREATE TABLE `kelkooxml_log`
     `created_at` DATETIME,
     `updated_at` DATETIME,
     PRIMARY KEY (`id`),
-    INDEX `FI_kelkooxml_log_feed_id` (`feed_id`),
-    INDEX `FI_kelkooxml_log_pse_id` (`pse_id`),
+    INDEX `fi_kelkooxml_log_feed_id` (`feed_id`),
+    INDEX `fi_kelkooxml_log_pse_id` (`pse_id`),
     CONSTRAINT `fk_kelkooxml_log_feed_id`
         FOREIGN KEY (`feed_id`)
         REFERENCES `kelkooxml_feed` (`id`)

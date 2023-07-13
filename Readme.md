@@ -14,7 +14,7 @@ This module allows you to export your catalog to Kelkoo through XML feeds.
 Add it in your main thelia composer.json file
 
 ```
-composer require thelia/kelkoo-xml-module:~1.0
+composer require thelia/kelkoo-xml-module:~2.0
 ```
 
 ## Usage

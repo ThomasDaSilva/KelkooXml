@@ -7,7 +7,7 @@
 {block name="page-title"}{intl l='KelkooXml'}{/block}
 
 {block name="check-auth"}
-{check_auth role="ADMIN" module=$module_code access="view" login_tpl="/admin/login"}
+{check_auth role="ADMIN" module=$module_code|default:null access="view" login_tpl="/admin/login"}
 {/block}
 
 {block name="main-content"}
@@ -32,7 +32,7 @@
             </ul>
         </div>
 
-        {hook name="module.configuration" location="module_configuration" modulecode="$module_code"}
+        {hook name="module.configuration" location="module_configuration" modulecode=$module_code|default:null}
 
         <div class="general-block-decorator">
             <div class="row">

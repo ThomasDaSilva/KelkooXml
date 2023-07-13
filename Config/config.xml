@@ -8,10 +8,6 @@
         <loop name="kelkooxml.feed" class="KelkooXml\Loop\FeedLoop" />
     </loops>
 
-    <forms>
-        <form name="kelkooxml.feed.management" class="KelkooXml\Form\FeedManagementForm" />
-    </forms>
-
     <hooks>
         <hook id="kelkooxml.module.config.hook" class="KelkooXml\Hook\HookManager" scope="request">
             <tag name="hook.event_listener" event="module.configuration" type="back" templates="render:kelkooxml/module-configuration.html" />
